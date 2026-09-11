@@ -1,5 +1,5 @@
 <launch>
-  <arg name="data_path" default="/home/ada/maps/hba/"/>
+  <arg name="data_path" default="/tmp/liorf_maps/hba/"/>
   <arg name="total_layer_num" default="3"/>
   <arg name="pcd_name_fill_num" default="0"/>
   <arg name="thread_num" default="16"/>

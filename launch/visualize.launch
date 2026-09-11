@@ -1,5 +1,5 @@
 <launch>
-  <arg name="file_path" default="/home/ada/maps/hba/"/>
+  <arg name="file_path" default="/tmp/liorf_maps/hba/"/>
   <arg name="downsample_size" default="0.1"/>
   <arg name="pcd_name_fill_num" default="0"/>
   <arg name="marker_size" default="0.5"/>
