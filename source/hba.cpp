@@ -511,6 +511,10 @@ int main(int argc, char** argv)
     std::cout<<"---------------------"<<std::endl;
     distribute_thread(hba.layers[i], hba.layers[i+1]);
     hba.update_next_layer_state(i);
+    // Next layer already copied the merged keyframes; drop this layer's clouds
+    // or 50k-KF pyramids keep every intermediate pcd resident until SIGKILL.
+    hba.layers[i].release_pcds();
+    printf("released layer %d pcds\n", i + 1);
   }
   global_ba(hba.layers[total_layer_num-1]);
   hba.pose_graph_optimization();

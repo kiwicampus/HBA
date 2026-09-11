@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -std=c++0x -std=c++17 -fexceptions")
-SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
+# Do not redirect binaries to ../bin — catkin needs them in devel/lib/hba for rosrun.
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -17,13 +17,17 @@ find_package(catkin REQUIRED COMPONENTS
   rosbag
   std_msgs
   geometry_msgs
+  nav_msgs
+  sensor_msgs
   visualization_msgs
   tf
+  pcl_conversions
 )
 
 find_package(PCL REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(GTSAM REQUIRED QUIET)
+find_package(Ceres QUIET)
 
 catkin_package(
   CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
@@ -48,6 +52,9 @@ target_link_libraries(hba ${catkin_LIBRARIES} ${PCL_LIBRARIES} gtsam)
 
 add_executable(visualize_map source/visualize.cpp)
 target_link_libraries(visualize_map ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+if(Ceres_FOUND)
+  target_link_libraries(visualize_map ${CERES_LIBRARIES})
+endif()
 
 add_executable(calculate_MME source/calculate_MME.cpp)
 target_link_libraries(calculate_MME ${catkin_LIBRARIES} ${PCL_LIBRARIES} gtsam)

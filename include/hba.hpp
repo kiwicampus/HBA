@@ -119,6 +119,13 @@ public:
       left_gap_num, tail, left_size, left_h_size, j_upper,
       downsample_size, voxel_size, eigen_ratio, reject_ratio);
   }
+
+  void release_pcds()
+  {
+    for (auto& pc : pcds)
+      pc.reset();
+    std::vector<pcl::PointCloud<PointType>::Ptr>().swap(pcds);
+  }
 };
 
 class HBA
@@ -153,6 +160,9 @@ public:
       layers[i].init_storage(total_layer_num);
       layers[i].data_path = layers[i-1].data_path + "process1/";
     }
+    // Top-layer global_ba holds every remaining cloud at once; coarsen so 50k+ KF maps fit.
+    layers[total_layer_num-1].downsample_size = 0.4;
+    layers[total_layer_num-1].voxel_size = 8.0;
     printf("HBA init done!\n");
   }
 

@@ -3,8 +3,12 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <set>
 #include <vector>
 #include <string>
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <Eigen/Dense>
@@ -56,9 +60,8 @@ namespace mypcl
     std::fstream file;
     file.open(filename);
     double tx, ty, tz, w, x, y, z;
-    while(!file.eof())
+    while(file >> tx >> ty >> tz >> w >> x >> y >> z)
     {
-      file >> tx >> ty >> tz >> w >> x >> y >> z;
       Eigen::Quaterniond q(w, x, y, z);
       Eigen::Vector3d t(tx, ty, tz);
       pose_vec.push_back(pose(qe * q, qe * t + te));
@@ -139,20 +142,12 @@ namespace mypcl
 
   void write_pose(std::vector<pose>& pose_vec, std::string path)
   {
-    std::ofstream file;
-    file.open(path + "pose.json", std::ofstream::trunc);
-    file.close();
-    Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
-    Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
-    file.open(path + "pose.json", std::ofstream::app);
-
+    // Keep poses in the input frame (liorf map / GPS). Upstream recenters to
+    // pose[0]; that drops the datum and breaks re-import into this stack.
+    std::ofstream file(path + "pose.json", std::ofstream::trunc);
+    file << std::setprecision(12);
     for(size_t i = 0; i < pose_vec.size(); i++)
     {
-      pose_vec[i].t << q0.inverse()*(pose_vec[i].t-t0);
-      pose_vec[i].q.w() = (q0.inverse()*pose_vec[i].q).w();
-      pose_vec[i].q.x() = (q0.inverse()*pose_vec[i].q).x();
-      pose_vec[i].q.y() = (q0.inverse()*pose_vec[i].q).y();
-      pose_vec[i].q.z() = (q0.inverse()*pose_vec[i].q).z();
       file << pose_vec[i].t(0) << " "
            << pose_vec[i].t(1) << " "
            << pose_vec[i].t(2) << " "
