@@ -3,6 +3,7 @@
 
 #include <thread>
 #include <fstream>
+#include <sstream>
 #include <iomanip>
 #include <Eigen/Sparse>
 #include <Eigen/Eigenvalues>
@@ -243,6 +244,34 @@ public:
                                                   j*pow(GAP, total_layer_num-1), gtsam::Pose3(R_sam, t_sam), odometryNoise));
         graph.push_back(factor);
       }
+
+    // liorf's own non-adjacent BetweenFactors (real loop closures from live scan matching, plus
+    // any periodic GPS-style anchors it added the same way) — written by liorf_to_hba.py,
+    // already remapped to these same layer-0 indices. Without these, HBA's PGO only ever knows
+    // about sequentially-nearby keyframes (the windowed/hierarchical factors above), so it has
+    // no way to keep two genuinely revisited places together and silently lets them drift apart
+    // again even though the input trajectory had them correctly stitched.
+    {
+      std::ifstream lc(data_path + "loop_closures.txt");
+      int n_lc = 0;
+      std::string line;
+      while (std::getline(lc, line)) {
+        if (line.empty()) continue;
+        std::istringstream iss(line);
+        int k1, k2;
+        double tx, ty, tz, qw, qx, qy, qz, s0, s1, s2, s3, s4, s5;
+        if (!(iss >> k1 >> k2 >> tx >> ty >> tz >> qw >> qx >> qy >> qz >> s0 >> s1 >> s2 >> s3 >> s4 >> s5))
+          continue;
+        if (k1 < 0 || k2 < 0 || k1 >= (int)init_pose.size() || k2 >= (int)init_pose.size()) continue;
+        gtsam::Rot3 R_sam(Eigen::Quaterniond(qw, qx, qy, qz).normalized());
+        gtsam::Point3 t_sam(tx, ty, tz);
+        Vector6 << s0, s1, s2, s3, s4, s5;
+        gtsam::noiseModel::Diagonal::shared_ptr loopNoise = gtsam::noiseModel::Diagonal::Sigmas(Vector6);
+        graph.add(gtsam::BetweenFactor<gtsam::Pose3>(k1, k2, gtsam::Pose3(R_sam, t_sam), loopNoise));
+        ++n_lc;
+      }
+      if (n_lc) printf("HBA PGO: added %d loop closure(s) from loop_closures.txt\n", n_lc);
+    }
 
     gtsam::ISAM2Params parameters;
     parameters.relinearizeThreshold = 0.01;

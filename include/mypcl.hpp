@@ -56,9 +56,10 @@ namespace mypcl
     std::fstream file;
     file.open(filename);
     double tx, ty, tz, w, x, y, z;
-    while(!file.eof())
+    // Loop on extraction success, not eof(): checking eof() first lets the final failed read past
+    // the last line push a phantom pose with stale (previous-line) values.
+    while(file >> tx >> ty >> tz >> w >> x >> y >> z)
     {
-      file >> tx >> ty >> tz >> w >> x >> y >> z;
       Eigen::Quaterniond q(w, x, y, z);
       Eigen::Vector3d t(tx, ty, tz);
       pose_vec.push_back(pose(qe * q, qe * t + te));
@@ -140,19 +141,12 @@ namespace mypcl
   void write_pose(std::vector<pose>& pose_vec, std::string path)
   {
     std::ofstream file;
+    // Upstream recenters everything onto pose 0 here; that discards the GPS/map-frame alignment
+    // liorf_to_hba.py carried in. Write poses as-is, in the original frame.
     file.open(path + "pose.json", std::ofstream::trunc);
-    file.close();
-    Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
-    Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
-    file.open(path + "pose.json", std::ofstream::app);
 
     for(size_t i = 0; i < pose_vec.size(); i++)
     {
-      pose_vec[i].t << q0.inverse()*(pose_vec[i].t-t0);
-      pose_vec[i].q.w() = (q0.inverse()*pose_vec[i].q).w();
-      pose_vec[i].q.x() = (q0.inverse()*pose_vec[i].q).x();
-      pose_vec[i].q.y() = (q0.inverse()*pose_vec[i].q).y();
-      pose_vec[i].q.z() = (q0.inverse()*pose_vec[i].q).z();
       file << pose_vec[i].t(0) << " "
            << pose_vec[i].t(1) << " "
            << pose_vec[i].t(2) << " "

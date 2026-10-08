@@ -9,7 +9,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -std=c++0x -std=c++17 -fexceptions")
-SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
+# Upstream sets this to ../bin, which lands outside devel/lib/hba and breaks rosrun. Let catkin's
+# default (devel/lib/<pkg>) apply instead.
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -24,10 +25,6 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(PCL REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(GTSAM REQUIRED QUIET)
-
-catkin_package(
-  CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
-)
 
 include_directories(
   include
