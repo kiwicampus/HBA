@@ -1,3 +1,4 @@
+#include <malloc.h>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -158,7 +159,10 @@ void parallel_comp(LAYER& layer, int thread_id, LAYER& next_layer)
       mypcl::transform_pointcloud(*src_pc[j], *pc_oneframe, t_tmp, q_tmp);
       pc_keyframe = mypcl::append_cloud(pc_keyframe, *pc_oneframe);
     }
-    downsample_voxel(*pc_keyframe, 0.05);
+    // Store merged window clouds at the resolution the next layer downsamples to before its BA anyway
+    // (was a fixed 0.05 m: with half-overlapping windows that roughly doubled the stored points per
+    // layer and ran a 77k-keyframe map out of memory in the upper layers / global BA).
+    downsample_voxel(*pc_keyframe, std::max(0.05, next_layer.downsample_size));
     next_layer.pcds[i] = pc_keyframe;
   }
 }
@@ -281,7 +285,10 @@ void parallel_tail(LAYER& layer, int thread_id, LAYER& next_layer)
       save_t += ros::Time::now().toSec()-t1;
     }
     t0 = ros::Time::now().toSec();
-    downsample_voxel(*pc_keyframe, 0.05);
+    // Store merged window clouds at the resolution the next layer downsamples to before its BA anyway
+    // (was a fixed 0.05 m: with half-overlapping windows that roughly doubled the stored points per
+    // layer and ran a 77k-keyframe map out of memory in the upper layers / global BA).
+    downsample_voxel(*pc_keyframe, std::max(0.05, next_layer.downsample_size));
     dsp_t += ros::Time::now().toSec()-t0;
 
     t0 = ros::Time::now().toSec();
@@ -373,7 +380,10 @@ void parallel_tail(LAYER& layer, int thread_id, LAYER& next_layer)
       mypcl::transform_pointcloud(*src_pc[j], *pc_oneframe, t_tmp, q_tmp);
       pc_keyframe = mypcl::append_cloud(pc_keyframe, *pc_oneframe);
     }
-    downsample_voxel(*pc_keyframe, 0.05);
+    // Store merged window clouds at the resolution the next layer downsamples to before its BA anyway
+    // (was a fixed 0.05 m: with half-overlapping windows that roughly doubled the stored points per
+    // layer and ran a 77k-keyframe map out of memory in the upper layers / global BA).
+    downsample_voxel(*pc_keyframe, std::max(0.05, next_layer.downsample_size));
     next_layer.pcds[i] = pc_keyframe;
   }
   printf("total time: %.2fs\n", total_t);
@@ -511,6 +521,11 @@ int main(int argc, char** argv)
     std::cout<<"---------------------"<<std::endl;
     distribute_thread(hba.layers[i], hba.layers[i+1]);
     hba.update_next_layer_state(i);
+    // Layer i's clouds are not read again (later layers use their own merged clouds; the final pose
+    // graph uses only pose_vec and hessians). Free them so large maps fit in RAM: keeping every layer's
+    // clouds OOM-killed a 77k-keyframe run at 27 GB.
+    std::vector<pcl::PointCloud<PointType>::Ptr>().swap(hba.layers[i].pcds);
+    malloc_trim(0);
   }
   global_ba(hba.layers[total_layer_num-1]);
   hba.pose_graph_optimization();

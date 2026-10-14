@@ -1,6 +1,7 @@
 #ifndef HBA_HPP
 #define HBA_HPP
 
+#include <cmath>
 #include <thread>
 #include <fstream>
 #include <sstream>
@@ -80,6 +81,12 @@ public:
 
   void init_parameter(int pose_size_ = 0)
   {
+    // Coarser points per layer: each layer's merged (half-overlapping) window clouds hold every point of
+    // the layer below about twice, and surface point counts scale with 1/voxel^2, so x sqrt(2) per layer
+    // keeps the stored points per layer roughly constant (0.1, 0.14, 0.2, 0.28 m). With a fixed 0.1 m a
+    // 77k-keyframe map ran out of memory at its third level. Output poses only; map density is set when
+    // the keyframe clouds are merged/densified.
+    downsample_size = 0.1 * std::pow(std::sqrt(2.0), layer_num - 1);
     if(layer_num == 1)
       pose_size = pose_vec.size();
     else
