@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include <vector>
 #include <string>
 #include <pcl/point_cloud.h>
@@ -144,6 +145,9 @@ namespace mypcl
     // Upstream recenters everything onto pose 0 here; that discards the GPS/map-frame alignment
     // liorf_to_hba.py carried in. Write poses as-is, in the original frame.
     file.open(path + "pose.json", std::ofstream::trunc);
+    // Full double precision: poses are in the map frame now (not recentered on pose 0), so the
+    // default 6 significant digits would round a 5100.123456 m coordinate to 5100.12.
+    file << std::setprecision(17);
 
     for(size_t i = 0; i < pose_vec.size(); i++)
     {
